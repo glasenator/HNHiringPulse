@@ -348,9 +348,10 @@ canvas {
   overflow: hidden;
 }
 
+
 .table-header-row {
   display: grid;
-  grid-template-columns: 160px 1fr 90px 90px 100px;
+  grid-template-columns: 140px 0.7fr 0.7fr 100px 100px;
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--surface2);
@@ -374,7 +375,7 @@ canvas {
 
 .table-row {
   display: grid;
-  grid-template-columns: 160px 1fr 90px 90px 100px;
+  grid-template-columns: 140px 0.7fr 0.7fr 100px 100px;
   padding: 12px 20px;
   border-bottom: 1px solid rgba(42,42,42,0.5);
   transition: background 0.1s;

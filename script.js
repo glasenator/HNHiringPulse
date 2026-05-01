@@ -25,17 +25,32 @@ window.addEventListener('DOMContentLoaded', () => {
   setRange(window.currentRange);
 });
 
+
+
 // HN Hiring Pulse: Initialize from data.json, fetch only new months
 const HN_ITEM_URL = id => `https://hn.algolia.com/api/v1/items/${id}`;
 const HN_SEARCH_URL = `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN:+Who+is+hiring?&tags=story&hitsPerPage=50`;
 const HN_SEARCH_AUTHOR = `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN+Who+is+hiring&tags=story,author_whoishiring&hitsPerPage=50`;
+const HN_WANTSHIRED_URL = `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN:+Who+wants+to+be+hired&tags=story&hitsPerPage=50`;
 
 window.allData = [];
+window.wantsHiredData = [];
+window.seekerDataLoaded = false;
+
+async function loadSeekerDataJson() {
+  try {
+    const res = await fetch('seekerData.json');
+    if (!res.ok) throw new Error('No seekerData.json');
+    return await res.json();
+  } catch (e) {
+    return [];
+  }
+}
 
 async function loadDataJson() {
   try {
-    const res = await fetch('data.json');
-    if (!res.ok) throw new Error('No data.json');
+    const res = await fetch('employerData.json');
+    if (!res.ok) throw new Error('No employerData.json');
     return await res.json();
   } catch (e) {
     return [];
@@ -94,7 +109,11 @@ function renderAll() {
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
   const counts = data.map(d => d.count);
-  const chartMaxCount = Math.max(...counts) || 1;
+  // Overlay seeker data
+  const seekerData = (window.wantsHiredData || []).slice().sort((a, b) => a.ts - b.ts);
+  const seekerCounts = seekerData.map(d => d.count);
+  // Use the larger of the two for scaling
+  const chartMaxCount = Math.max(...counts, ...seekerCounts) || 1;
   const minCount = 0;
   ctx.clearRect(0, 0, W, H);
   // Grid lines
@@ -148,14 +167,14 @@ function renderAll() {
   ctx.setLineDash([5, 4]);
   ctx.stroke();
   ctx.setLineDash([]);
-  // Main line
+  // Main line (employer)
   ctx.beginPath();
   ctx.moveTo(xPos(0), yPos(counts[0]));
   counts.forEach((c, i) => { if (i > 0) ctx.lineTo(xPos(i), yPos(c)); });
   ctx.strokeStyle = '#ff6600';
   ctx.lineWidth = 2;
   ctx.stroke();
-  // Dots
+  // Dots (employer)
   counts.forEach((c, i) => {
     ctx.beginPath();
     ctx.arc(xPos(i), yPos(c), 3.5, 0, Math.PI * 2);
@@ -165,6 +184,39 @@ function renderAll() {
     ctx.lineWidth = 1.5;
     ctx.stroke();
   });
+  // Overlay seeker line if available
+  if (seekerData.length > 0) {
+    // Align seeker data to employer data by month/year
+    const employerKeys = data.map(d => `${d.year}-${d.month}`);
+    const seekerMap = {};
+    seekerData.forEach(d => { seekerMap[`${d.year}-${d.month}`] = d; });
+    const seekerAligned = employerKeys.map(key => seekerMap[key] || null);
+    // Draw seeker line
+    ctx.beginPath();
+    let started2 = false;
+    seekerAligned.forEach((d, i) => {
+      if (!d) return;
+      if (!started2) { ctx.moveTo(xPos(i), yPos(d.count)); started2 = true; }
+      else ctx.lineTo(xPos(i), yPos(d.count));
+    });
+    ctx.strokeStyle = '#4aa8ff';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([2, 2]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Dots for seeker
+    seekerAligned.forEach((d, i) => {
+      if (d) {
+        ctx.beginPath();
+        ctx.arc(xPos(i), yPos(d.count), 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#4aa8ff';
+        ctx.fill();
+        ctx.strokeStyle = '#0d0d0d';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+    });
+  }
   // X axis labels — show every Nth
   const step = Math.ceil(data.length / 16);
   ctx.fillStyle = '#555';
@@ -180,10 +232,22 @@ function renderAll() {
   // Table
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
-  const sorted = data.slice().sort((a, b) => b.ts - a.ts);
-  const tableMaxCount = Math.max(...sorted.map(d => d.count)) || 1;
-  sorted.forEach((d, i) => {
-    const prev = sorted[i + 1];
+  const employerData = data.slice().sort((a, b) => b.ts - a.ts);
+  // Use the global max count from allData, not just filtered data
+  const globalMaxCount = Math.max(...window.allData.map(d => d.count)) || 1;
+  // Use a local map for seeker data by year-month
+  const seekerMap = Object.create(null);
+  (window.wantsHiredData || []).forEach(d => { seekerMap[`${d.year}-${d.month}`] = d; });
+  // Compute all ratios for color mapping
+  const ratios = employerData.map(d => {
+    const seeker = seekerMap[`${d.year}-${d.month}`];
+    return (seeker && seeker.count > 0) ? d.count / seeker.count : null;
+  }).filter(r => r !== null && isFinite(r));
+  const minRatio = Math.min(...ratios);
+  const maxRatio = Math.max(...ratios);
+
+  employerData.forEach((d, i) => {
+    const prev = employerData[i + 1];
     let deltaHTML = '<span class="delta-badge neutral">—</span>';
     if (prev) {
       const delta = d.count - prev.count;
@@ -192,26 +256,63 @@ function renderAll() {
       const sign = delta > 0 ? '+' : '';
       deltaHTML = `<span class="delta-badge ${cls}">${sign}${pct}%</span>`;
     }
-    const pct = Math.round((d.count / tableMaxCount) * 100);
+    let pct = Math.round((d.count / globalMaxCount) * 100);
+    pct = Math.min(100, pct);
+    // Find matching seeker data
+    const seeker = seekerMap[`${d.year}-${d.month}`];
+    const seekerCount = seeker ? seeker.count : '—';
+    // Ratio (posts to seekers)
+    let ratio = '—';
+    let ratioColor = '#fff';
+    if (seeker && seeker.count > 0) {
+      const r = d.count / seeker.count;
+      ratio = r.toFixed(2);
+      // 1.0 = yellow (hue 50), below 1.0 = red to yellow, above 1.0 = yellow to green
+      if (r === 1) {
+        ratioColor = 'hsl(50, 100%, 50%)';
+      } else if (r < 1) {
+        // Red (hue 0) to yellow (hue 50)
+        // t = 0 at r = minRatio, t = 1 at r = 1
+        const t = (r - minRatio) / (1 - minRatio);
+        const hue = 0 + t * 50;
+        ratioColor = `hsl(${hue}, 100%, 50%)`;
+      } else {
+        // Yellow (hue 50) to green (hue 120)
+        // t = 0 at r = 1, t = 1 at r = maxRatio
+        const t = (r - 1) / (maxRatio - 1);
+        const hue = 50 + t * (120 - 50);
+        ratioColor = `hsl(${hue}, 100%, 45%)`;
+      }
+    }
+    let seekerPct = seeker && globalMaxCount ? Math.round((seeker.count / globalMaxCount) * 100) : 0;
+    seekerPct = Math.min(100, seekerPct);
     const row = document.createElement('div');
     row.className = 'table-row';
+    let seekerThreadId = seeker ? seeker.id : null;
     row.innerHTML = `
-      <div class="td month">${d.label}</div>
-      <div class="td bar-cell">
-        <div class="mini-bar-track">
-          <div class="mini-bar-fill" style="width:${pct}%"></div>
+      <div class="td month">
+        <span style="color:var(--muted);font-weight:500;">${d.label}</span>
+      </div>
+      <div class="td bar-cell combined-bar-cell" style="flex-direction:column;align-items:flex-start;">
+        <div style="display:flex;align-items:center;width:100%">
+          <span style="margin-left:4px;margin-right:4px;font-size:11px;color:#ff6600;">${d.count.toLocaleString()}</span>
+          <div class="mini-bar-track" style="display:inline-block;width:24%;margin-right:2%;vertical-align:middle;">
+            <div class="mini-bar-fill" style="width:${pct}%;background:#ff6600"></div>
+          </div>
         </div>
+        <a href="https://news.ycombinator.com/item?id=${d.id}" target="_blank" style="color:var(--hn-orange);text-decoration:underline;font-size:10px;margin-top:2px;">#${d.id}</a>
       </div>
-      <div class="td count">${d.count.toLocaleString()}</div>
-      <div class="td">${deltaHTML}</div>
-      <div class="td">
-        <a href="https://news.ycombinator.com/item?id=${d.id}" target="_blank"
-           style="color:var(--muted);font-size:11px;text-decoration:none;"
-           onmouseover="this.style.color='var(--hn-orange)'"
-           onmouseout="this.style.color='var(--muted)'">
-          #${d.id} ↗
-        </a>
+      <div class="td bar-cell combined-bar-cell" style="flex-direction:column;align-items:flex-start;">
+        <div style="display:flex;align-items:center;width:100%">
+          <span style="margin-left:4px; margin-right:4px;font-size:11px;color:#4aa8ff;">${seekerCount !== '—' ? seekerCount.toLocaleString() : '—'}</span>
+          <div class="mini-bar-track" style="display:inline-block;width:24%;vertical-align:middle;">
+            <div class="mini-bar-fill" style="width:${seekerPct}%;background:#4aa8ff"></div>
+          </div>
+        </div>
+        ${seekerThreadId ? `<a href="https://news.ycombinator.com/item?id=${seekerThreadId}" target="_blank" style="color:#4aa8ff;text-decoration:underline;font-size:10px;margin-top:2px;">#${seekerThreadId}</a>` : `<span style=\"color:#666;font-size:10px;margin-top:2px;\">-</span>`}
       </div>
+      <div class="td"style="margin-left:16px;">${deltaHTML}</div>
+      <div class="td"><span style="color:${ratioColor}">${ratio}</span></div>
     `;
     tbody.appendChild(row);
   });
@@ -236,15 +337,15 @@ async function checkFetchAvailability() {
   let res = await fetch(HN_SEARCH_AUTHOR + '&page=0');
   let data = await res.json();
   let hits = data.hits || [];
-  let res2 = await fetch(HN_SEARCH_AUTHOR + '&page=1');
-  let data2 = await res2.json();
-  hits = hits.concat(data2.hits || []);
-  let res3 = await fetch(HN_SEARCH_URL + '&page=0');
-  let data3 = await res3.json();
-  hits = hits.concat(data3.hits || []);
-  let res4 = await fetch(HN_SEARCH_URL + '&page=1');
-  let data4 = await res4.json();
-  hits = hits.concat(data4.hits || []);
+  let res2b = await fetch(HN_SEARCH_AUTHOR + '&page=1');
+  let data2b = await res2b.json();
+  hits = hits.concat(data2b.hits || []);
+  let res3b = await fetch(HN_SEARCH_URL + '&page=0');
+  let data3b = await res3b.json();
+  hits = hits.concat(data3b.hits || []);
+  let res4b = await fetch(HN_SEARCH_URL + '&page=1');
+  let data4b = await res4b.json();
+  hits = hits.concat(data4b.hits || []);
   const validTitles = hits.filter(h =>
     h.title &&
     /who is hiring/i.test(h.title) &&
@@ -252,7 +353,7 @@ async function checkFetchAvailability() {
     !/freelancer/i.test(h.title) &&
     h.num_comments > 50
   );
-  const threads = validTitles.map(h => {
+    return validTitles.map(h => {
     const date = new Date(h.created_at);
     return {
       id: h.objectID,
@@ -275,17 +376,28 @@ async function checkFetchAvailability() {
 
 
 // On load, fetch new data automatically for months from May 2026 onward
+// Automatically fetch new months (placeholder implementation)
+async function autoFetchNewMonths() {
+  // TODO: Implement logic to fetch and append new months if needed
+  // For now, just log to indicate the function runs
+  console.log('autoFetchNewMonths called (not yet implemented)');
+}
+
+
 window.addEventListener('DOMContentLoaded', async () => {
   window.allData = await loadDataJson();
+  window.wantsHiredData = await loadSeekerDataJson();
+  await autoFetchNewSeekerMonths();
   renderAll();
-  // Try to fetch new data automatically
   await autoFetchNewMonths();
 });
 
-async function autoFetchNewMonths() {
+
+// Auto-fetch new seeker months from current month back to May 2026
+async function autoFetchNewSeekerMonths() {
   const minMonth = 4; // May (0-based)
   const minYear = 2026;
-  const existing = window.allData || [];
+  const existing = window.wantsHiredData || [];
 
   function isNewMonth(t) {
     return (
@@ -294,192 +406,49 @@ async function autoFetchNewMonths() {
     ) && !existing.some(e => e.year === t.year && e.month === t.month);
   }
 
-  async function fetchThreadList() {
-    let res = await fetch(HN_SEARCH_AUTHOR + '&page=0');
-    let data = await res.json();
-    let hits = data.hits || [];
-    let res2 = await fetch(HN_SEARCH_AUTHOR + '&page=1');
-    let data2 = await res2.json();
-    hits = hits.concat(data2.hits || []);
-    let res3 = await fetch(HN_SEARCH_URL + '&page=0');
-    let data3 = await res3.json();
-    hits = hits.concat(data3.hits || []);
-    let res4 = await fetch(HN_SEARCH_URL + '&page=1');
-    let data4 = await res4.json();
-    hits = hits.concat(data4.hits || []);
-    const validTitles = hits.filter(h =>
-      h.title &&
-      /who is hiring/i.test(h.title) &&
-      !/wants to be hired/i.test(h.title) &&
-      !/freelancer/i.test(h.title) &&
-      h.num_comments > 50
-    );
-    return validTitles.map(h => {
-      const date = new Date(h.created_at);
-      const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-      return {
-        id: h.objectID,
-        label,
-        month: date.getMonth(),
-        year: date.getFullYear(),
-        ts: date.getTime()
-      };
-    });
-  }
-
-  async function fetchJobPostCount(threadId) {
-    try {
-      const res = await fetch(HN_ITEM_URL(threadId));
-      const data = await res.json();
-      const children = data.children || [];
-      const valid = children.filter(c =>
-        c.type === 'comment' &&
-        !c.deleted &&
-        !c.dead
-      );
-      return valid.length;
-    } catch(e) {
-      return 0;
-    }
-  }
-
-  const threads = await fetchThreadList();
-  const newThreads = threads.filter(isNewMonth);
-  if (!newThreads.length) {
-    // No new months, update info div
-    const fetchInfo = document.getElementById('fetch-info');
-    if (fetchInfo) {
-      fetchInfo.innerHTML = '<span>✔</span> All data fetched';
-    }
-    return;
-  }
-  for (let i = 0; i < newThreads.length; i++) {
-    const t = newThreads[i];
-    const count = await fetchJobPostCount(t.id);
-    window.allData.push({ ...t, count });
-    renderAll();
-    const fetchInfo = document.getElementById('fetch-info');
-    if (fetchInfo) {
-      fetchInfo.innerHTML = `<span>⏳</span> Fetching ${t.label}… (${count} posts)`;
-    }
-  }
-  renderAll();
-  // Save updated data.json (download)
-  const blob = new Blob([JSON.stringify(window.allData, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'data.json';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 100);
+  // Show fetching indicator
   const fetchInfo = document.getElementById('fetch-info');
   if (fetchInfo) {
-    fetchInfo.innerHTML = '<span>✔</span> Fetch complete!';
-  }
-}
-
-
-window.startFetch = async function startFetch() {
-  const minMonth = 4; // May (0-based)
-  const minYear = 2026;
-  const existing = window.allData || [];
-
-  function isNewMonth(t) {
-    return (
-      t.year > minYear ||
-      (t.year === minYear && t.month >= minMonth)
-    ) && !existing.some(e => e.year === t.year && e.month === t.month);
+    fetchInfo.innerHTML = '<span>⏳</span> Fetching new data…';
   }
 
-  async function fetchThreadList() {
-    let res = await fetch(HN_SEARCH_AUTHOR + '&page=0');
-    let data = await res.json();
-    let hits = data.hits || [];
-    let res2 = await fetch(HN_SEARCH_AUTHOR + '&page=1');
-    let data2 = await res2.json();
-    hits = hits.concat(data2.hits || []);
-    let res3 = await fetch(HN_SEARCH_URL + '&page=0');
-    let data3 = await res3.json();
-    hits = hits.concat(data3.hits || []);
-    let res4 = await fetch(HN_SEARCH_URL + '&page=1');
-    let data4 = await res4.json();
-    hits = hits.concat(data4.hits || []);
-    const validTitles = hits.filter(h =>
-      h.title &&
-      /who is hiring/i.test(h.title) &&
-      !/wants to be hired/i.test(h.title) &&
-      !/freelancer/i.test(h.title) &&
-      h.num_comments > 50
-    );
-    return validTitles.map(h => {
-      const date = new Date(h.created_at);
-      const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
-      return {
-        id: h.objectID,
-        label,
-        month: date.getMonth(),
-        year: date.getFullYear(),
-        ts: date.getTime()
-      };
-    });
-  }
-
-  async function fetchJobPostCount(threadId) {
-    try {
-      const res = await fetch(HN_ITEM_URL(threadId));
-      const data = await res.json();
-      const children = data.children || [];
-      const valid = children.filter(c =>
-        c.type === 'comment' &&
-        !c.deleted &&
-        !c.dead
-      );
-      return valid.length;
-    } catch(e) {
-      return 0;
-    }
-  }
-
-  const threads = await fetchThreadList();
+  // Fetch thread list but do not fetch post counts
+  let res = await fetch(HN_WANTSHIRED_URL + '&page=0');
+  let data = await res.json();
+  let hits = data.hits || [];
+  let res2b = await fetch(HN_WANTSHIRED_URL + '&page=1');
+  let data2b = await res2b.json();
+  hits = hits.concat(data2b.hits || []);
+  const validTitles = hits.filter(h =>
+    h.title &&
+    /who wants to be hired/i.test(h.title) &&
+    !/hiring/i.test(h.title) &&
+    h.num_comments > 10
+  );
+  const threads = validTitles.map(h => {
+    const date = new Date(h.created_at);
+    return {
+      id: h.objectID,
+      label: date.toLocaleString('default', { month: 'long', year: 'numeric' }),
+      month: date.getMonth(),
+      year: date.getFullYear(),
+      ts: date.getTime(),
+      count: h.num_comments
+    };
+  });
   const newThreads = threads.filter(isNewMonth);
-  if (!newThreads.length) {
-    // No alert, just disable fetch button and update text/icon
-    const fetchBtn = document.getElementById('fetch-btn');
-    if (fetchBtn) {
-      fetchBtn.disabled = true;
-      fetchBtn.innerHTML = '<span>✔</span> ALL DATA FETCHED';
-    }
-    return;
+  if (newThreads.length) {
+    window.wantsHiredData = existing.concat(newThreads);
+    window.seekerDataLoaded = true;
   }
-  for (let i = 0; i < newThreads.length; i++) {
-    const t = newThreads[i];
-    const count = await fetchJobPostCount(t.id);
-    window.allData.push({ ...t, count });
-    console.log(`Fetched ${t.label}: ${count} posts`);
-  }
-  renderAll();
-  // Automatically save updated data.json
-  const blob = new Blob([JSON.stringify(window.allData, null, 2)], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'data.json';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 100);
 
-  alert('Fetch complete! New months have been added and data.json has been downloaded.');
-  // Re-check fetch availability after fetching
-  checkFetchAvailability();
+  // If both employer and seeker data are up to date, show complete
+  const employerDone = typeof window.allData !== 'undefined';
+  const seekerDone = true; // We just finished seeker fetch
+  if (fetchInfo && employerDone && seekerDone) {
+    fetchInfo.innerHTML = '<span style="color:green">✔</span> Data Fetch Complete';
+  }
 }
-
 window.downloadData = function downloadData() {
   if (!window.allData || !window.allData.length) {
     alert('No data loaded yet. Please fetch data first.');
@@ -489,7 +458,7 @@ window.downloadData = function downloadData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'data.json';
+  a.download = 'employerData.json';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {

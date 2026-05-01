@@ -82,6 +82,7 @@
     <div class="fetch-info" id="fetch-info">
       <span>⏳</span> Fetching new data…
     </div>
+    <!-- Download Seeker Data button removed -->
   </div>
 
   <!-- Progress -->
@@ -95,7 +96,7 @@
   <!-- Chart -->
   <div class="chart-container" id="chart-container">
     <div class="chart-header">
-      <div class="chart-title">Job postings per month (top-level comments only)</div>
+      <div class="chart-title">Job and Seeker postings per month (top-level comments only)</div>
       <div class="chart-legend">
         <div class="legend-item">
           <div class="legend-dot" style="background: var(--hn-orange)"></div>
@@ -104,6 +105,10 @@
         <div class="legend-item">
           <div class="legend-dot" style="background: rgba(255,102,0,0.3)"></div>
           <span>12-mo avg</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #4aa8ff"></div>
+          <span>Seeker posts</span>
         </div>
       </div>
     </div>
@@ -120,10 +125,10 @@
   <div class="table-container">
     <div class="table-header-row">
       <div class="th">Month</div>
-      <div class="th">Volume</div>
-      <div class="th">Posts</div>
-      <div class="th">vs prev</div>
-      <div class="th">Thread</div>
+      <div class="th">Job Posts</div>
+      <div class="th">Seeker Posts</div>
+      <div class="th">Jobs vs prev Mth</div>
+      <div class="th">Jobs to Seeker Ratio</div>
     </div>
     <div class="table-body" id="table-body">
 
