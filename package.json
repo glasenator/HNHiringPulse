@@ -1,0 +1,15 @@
+{
+  "name": "hn-hiring-pulse",
+  "version": "1.0.0",
+  "description": "HN Hiring Pulse static site for Heroku",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
