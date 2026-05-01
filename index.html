@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HN Hiring Pulse</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="hn-badge">Y</div>
+    <div class="logo-text">
+      <h1>HN Hiring Pulse</h1>
+      <p>Ask HN: Who is Hiring? — Monthly job post tracker</p>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="pulse-dot" id="status-dot"></div>
+    <span id="status-text">READY</span>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- Stats Row -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Months tracked</div>
+      <div class="stat-value orange" id="stat-months">—</div>
+      <div class="stat-delta neutral" id="stat-months-sub">fetch data to begin</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Latest month</div>
+      <div class="stat-value" id="stat-latest">—</div>
+      <div class="stat-delta neutral" id="stat-latest-sub">job postings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Peak month</div>
+      <div class="stat-value" id="stat-peak">—</div>
+      <div class="stat-delta neutral" id="stat-peak-sub">all-time high</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Lowest month</div>
+      <div class="stat-value" id="stat-low">—</div>
+      <div class="stat-delta neutral" id="stat-low-sub">all-time low</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">MoM Change</div>
+      <div class="stat-value" id="stat-mom">—</div>
+      <div class="stat-delta neutral" id="stat-mom-sub">vs prior month</div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <span class="control-label">Range:</span>
+    <div class="btn-group">
+      <button class="btn" onclick="setRange(12)" id="btn-12">12 mo</button>
+      <button class="btn active" onclick="setRange(24)" id="btn-24">24 mo</button>
+      <button class="btn" onclick="setRange(0)" id="btn-all">All</button>
+    </div>
+    <button class="fetch-btn" id="fetch-btn" onclick="startFetch()">
+      <span>▶</span> Fetch Data
+    </button>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-bar-outer" id="progress-outer">
+    <div class="progress-bar-inner" id="progress-inner"></div>
+  </div>
+
+  <!-- Log area -->
+  <div id="log-area"></div>
+
+  <!-- Chart -->
+  <div class="chart-container" id="chart-container">
+    <div class="chart-header">
+      <div class="chart-title">Job postings per month (top-level comments only)</div>
+      <div class="chart-legend">
+        <div class="legend-item">
+          <div class="legend-dot" style="background: var(--hn-orange)"></div>
+          <span>Job posts</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: rgba(255,102,0,0.3)"></div>
+          <span>12-mo avg</span>
+        </div>
+      </div>
+    </div>
+    <canvas id="chart" height="280"></canvas>
+    <div class="tooltip" id="tooltip">
+      <div class="tooltip-month" id="tt-month"></div>
+      <div class="tooltip-count" id="tt-count"></div>
+      <div class="tooltip-link" id="tt-link"></div>
+    </div>
+
+  </div>
+
+  <!-- Table -->
+  <div class="table-container">
+    <div class="table-header-row">
+      <div class="th">Month</div>
+      <div class="th">Volume</div>
+      <div class="th">Posts</div>
+      <div class="th">vs prev</div>
+      <div class="th">Thread</div>
+    </div>
+    <div class="table-body" id="table-body">
+
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Data sourced from <a href="https://hn.algolia.com/api" target="_blank">HN Algolia API</a> · 
+  Counts reflect top-level comments on monthly "Ask HN: Who is Hiring?" threads ·
+  Only direct replies counted (actual job posts, not meta-comments)
+</footer>
+<script src="script.js"></script>
+</body>
+</html>
