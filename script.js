@@ -361,17 +361,6 @@ async function checkFetchAvailability() {
       year: date.getFullYear(),
     };
   });
-  const newThreads = threads.filter(isNewMonth);
-  const fetchBtn = document.getElementById('fetch-btn');
-  if (fetchBtn) {
-    if (newThreads.length === 0) {
-      fetchBtn.disabled = true;
-      fetchBtn.innerHTML = '<span>✔</span> ALL DATA FETCHED';
-    } else {
-      fetchBtn.disabled = false;
-      fetchBtn.innerHTML = '<span>▶</span> Fetch Data';
-    }
-  }
 }
 
 

@@ -10,34 +10,25 @@
 
 <header>
   <div class="logo">
-    <div class="hn-badge">Y</div>
+    <a href="https://news.ycombinator.com/" target="_blank" style="text-decoration:none;">
+      <div class="hn-badge">Y</div>
+    </a>
     <div class="logo-text">
       <h1>HN Hiring Pulse</h1>
       <p>Ask HN: Who is Hiring? — Monthly job post tracker</p>
     </div>
   </div>
   <div class="header-status">
-    <div class="pulse-dot" id="status-dot"></div>
-    <span id="status-text">READY</span>
+    <a href="https://www.danielmglaser.com" target="_blank" style="color:#4aa8ff;text-decoration:underline;font-weight:500;">danielmglaser.com</a>
   </div>
 </header>
 
-
-
-<!-- Conversational Intro Paragraph -->
-<div class="intro-outer">
-</div>
-
-
-<!-- Combined App Description and HN Context (not collapsible) -->
+<!-- Combined App Description and HN Context -->
 <div class="app-desc-outer">
   <p class="app-desc-text">
     <strong>HN Hiring Pulse</strong> automatically tracks and visualizes monthly "Ask HN: Who is Hiring?" job threads on Hacker News. It fetches and counts top-level job posts for each month, showing trends, peaks, and changes over time. Data is sourced from the HN Algolia API and updates automatically as new months are posted.<br><br>
     <strong>Hacker News</strong> is a popular online community where software engineers, founders, and tech enthusiasts share news and discuss trends. Every month, the "Ask HN: Who is Hiring?" thread becomes a central hub for job postings in the software industry. Because so many companies and job seekers use it, the volume of posts here is often seen as a weathervane for the broader tech job market—rising in boom times, dipping during slowdowns.
   </p>
-</div>
-    </div>
-  </details>
 </div>
 
 <div class="main">
@@ -82,16 +73,7 @@
     <div class="fetch-info" id="fetch-info">
       <span>⏳</span> Fetching new data…
     </div>
-    <!-- Download Seeker Data button removed -->
   </div>
-
-  <!-- Progress -->
-  <div class="progress-bar-outer" id="progress-outer">
-    <div class="progress-bar-inner" id="progress-inner"></div>
-  </div>
-
-  <!-- Log area -->
-  <div id="log-area"></div>
 
   <!-- Chart -->
   <div class="chart-container" id="chart-container">
