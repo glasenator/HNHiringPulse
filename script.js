@@ -273,11 +273,114 @@ async function checkFetchAvailability() {
   }
 }
 
+
+// On load, fetch new data automatically for months from May 2026 onward
 window.addEventListener('DOMContentLoaded', async () => {
   window.allData = await loadDataJson();
   renderAll();
-  checkFetchAvailability();
+  // Try to fetch new data automatically
+  await autoFetchNewMonths();
 });
+
+async function autoFetchNewMonths() {
+  const minMonth = 4; // May (0-based)
+  const minYear = 2026;
+  const existing = window.allData || [];
+
+  function isNewMonth(t) {
+    return (
+      t.year > minYear ||
+      (t.year === minYear && t.month >= minMonth)
+    ) && !existing.some(e => e.year === t.year && e.month === t.month);
+  }
+
+  async function fetchThreadList() {
+    let res = await fetch(HN_SEARCH_AUTHOR + '&page=0');
+    let data = await res.json();
+    let hits = data.hits || [];
+    let res2 = await fetch(HN_SEARCH_AUTHOR + '&page=1');
+    let data2 = await res2.json();
+    hits = hits.concat(data2.hits || []);
+    let res3 = await fetch(HN_SEARCH_URL + '&page=0');
+    let data3 = await res3.json();
+    hits = hits.concat(data3.hits || []);
+    let res4 = await fetch(HN_SEARCH_URL + '&page=1');
+    let data4 = await res4.json();
+    hits = hits.concat(data4.hits || []);
+    const validTitles = hits.filter(h =>
+      h.title &&
+      /who is hiring/i.test(h.title) &&
+      !/wants to be hired/i.test(h.title) &&
+      !/freelancer/i.test(h.title) &&
+      h.num_comments > 50
+    );
+    return validTitles.map(h => {
+      const date = new Date(h.created_at);
+      const label = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+      return {
+        id: h.objectID,
+        label,
+        month: date.getMonth(),
+        year: date.getFullYear(),
+        ts: date.getTime()
+      };
+    });
+  }
+
+  async function fetchJobPostCount(threadId) {
+    try {
+      const res = await fetch(HN_ITEM_URL(threadId));
+      const data = await res.json();
+      const children = data.children || [];
+      const valid = children.filter(c =>
+        c.type === 'comment' &&
+        !c.deleted &&
+        !c.dead
+      );
+      return valid.length;
+    } catch(e) {
+      return 0;
+    }
+  }
+
+  const threads = await fetchThreadList();
+  const newThreads = threads.filter(isNewMonth);
+  if (!newThreads.length) {
+    // No new months, update info div
+    const fetchInfo = document.getElementById('fetch-info');
+    if (fetchInfo) {
+      fetchInfo.innerHTML = '<span>✔</span> All data fetched';
+    }
+    return;
+  }
+  for (let i = 0; i < newThreads.length; i++) {
+    const t = newThreads[i];
+    const count = await fetchJobPostCount(t.id);
+    window.allData.push({ ...t, count });
+    renderAll();
+    const fetchInfo = document.getElementById('fetch-info');
+    if (fetchInfo) {
+      fetchInfo.innerHTML = `<span>⏳</span> Fetching ${t.label}… (${count} posts)`;
+    }
+  }
+  renderAll();
+  // Save updated data.json (download)
+  const blob = new Blob([JSON.stringify(window.allData, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'data.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+  const fetchInfo = document.getElementById('fetch-info');
+  if (fetchInfo) {
+    fetchInfo.innerHTML = '<span>✔</span> Fetch complete!';
+  }
+}
 
 
 window.startFetch = async function startFetch() {

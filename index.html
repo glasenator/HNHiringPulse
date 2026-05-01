@@ -22,6 +22,24 @@
   </div>
 </header>
 
+
+
+<!-- Conversational Intro Paragraph -->
+<div class="intro-outer">
+</div>
+
+
+<!-- Combined App Description and HN Context (not collapsible) -->
+<div class="app-desc-outer">
+  <p class="app-desc-text">
+    <strong>HN Hiring Pulse</strong> automatically tracks and visualizes monthly "Ask HN: Who is Hiring?" job threads on Hacker News. It fetches and counts top-level job posts for each month, showing trends, peaks, and changes over time. Data is sourced from the HN Algolia API and updates automatically as new months are posted.<br><br>
+    <strong>Hacker News</strong> is a popular online community where software engineers, founders, and tech enthusiasts share news and discuss trends. Every month, the "Ask HN: Who is Hiring?" thread becomes a central hub for job postings in the software industry. Because so many companies and job seekers use it, the volume of posts here is often seen as a weathervane for the broader tech job market—rising in boom times, dipping during slowdowns.
+  </p>
+</div>
+    </div>
+  </details>
+</div>
+
 <div class="main">
 
   <!-- Stats Row -->
@@ -61,9 +79,9 @@
       <button class="btn active" onclick="setRange(24)" id="btn-24">24 mo</button>
       <button class="btn" onclick="setRange(0)" id="btn-all">All</button>
     </div>
-    <button class="fetch-btn" id="fetch-btn" onclick="startFetch()">
-      <span>▶</span> Fetch Data
-    </button>
+    <div class="fetch-info" id="fetch-info">
+      <span>⏳</span> Fetching new data…
+    </div>
   </div>
 
   <!-- Progress -->

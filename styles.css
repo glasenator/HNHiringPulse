@@ -1,3 +1,71 @@
+/* Conversational intro paragraph styles */
+/* App description (combined) styles */
+.app-desc-outer {
+  max-width: 900px;
+  margin: 32px auto 0 auto;
+  padding: 0 24px;
+}
+.app-desc-text {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 15px;
+  color: var(--muted);
+  margin-bottom: 0.5em;
+  line-height: 1.6;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 28px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.04);
+  transition: border-color 0.2s;
+}
+/* Collapsible app description styles */
+.app-desc-outer {
+  max-width: 900px;
+  margin: 24px auto 0 auto;
+  padding: 0 24px;
+}
+.app-desc-summary {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  color: var(--hn-orange);
+  cursor: pointer;
+  outline: none;
+  padding: 4px 0;
+  user-select: none;
+}
+.app-desc-body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 8px 0 0 0;
+  padding-left: 2px;
+}
+.app-desc-outer details[open] > summary::after {
+  content: "▲";
+  font-size: 10px;
+  margin-left: 8px;
+  color: var(--muted);
+}
+.app-desc-outer summary::after {
+  content: "▼";
+  font-size: 10px;
+  margin-left: 8px;
+  color: var(--muted);
+}
+/* Fetch info styling */
+.fetch-info {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  background: none;
+  border: none;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
 :root {
