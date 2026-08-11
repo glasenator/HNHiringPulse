@@ -364,80 +364,122 @@ async function checkFetchAvailability() {
 }
 
 
-// On load, fetch new data automatically for months from May 2026 onward
-// Automatically fetch new months (placeholder implementation)
-async function autoFetchNewMonths() {
-  // TODO: Implement logic to fetch and append new months if needed
-  // For now, just log to indicate the function runs
-  console.log('autoFetchNewMonths called (not yet implemented)');
+function monthKey(entry) {
+  return `${entry.year}-${entry.month}`;
 }
 
+function mergeMonthlyData(existingData, freshEntries) {
+  const byMonth = new Map();
+  (existingData || []).forEach(item => byMonth.set(monthKey(item), item));
+  (freshEntries || []).forEach(item => byMonth.set(monthKey(item), item));
+  return [...byMonth.values()].sort((a, b) => a.ts - b.ts);
+}
+
+function buildMonthEntryFromHit(hit) {
+  const date = new Date(hit.created_at);
+  return {
+    id: hit.objectID,
+    label: date.toLocaleString('default', { month: 'long', year: 'numeric' }),
+    month: date.getMonth(),
+    year: date.getFullYear(),
+    ts: date.getTime(),
+    count: hit.num_comments || 0
+  };
+}
+
+async function fetchMonthlyThreadData(url, titleMatcher, disallowMatchers = [], minComments = 0) {
+  const pages = [0, 1];
+  let hits = [];
+
+  for (const page of pages) {
+    const res = await fetch(`${url}&page=${page}`);
+    const data = await res.json();
+    hits = hits.concat(data.hits || []);
+  }
+
+  const latestByMonth = new Map();
+
+  hits.forEach(hit => {
+    if (!hit.title) return;
+    if (!titleMatcher.test(hit.title)) return;
+    if (disallowMatchers.some(re => re.test(hit.title))) return;
+    if ((hit.num_comments || 0) < minComments) return;
+
+    const monthEntry = buildMonthEntryFromHit(hit);
+    const key = `${monthEntry.year}-${monthEntry.month}`;
+
+    const current = latestByMonth.get(key);
+    if (!current || monthEntry.count > current.count) {
+      latestByMonth.set(key, monthEntry);
+    }
+  });
+
+  return [...latestByMonth.values()].sort((a, b) => a.ts - b.ts);
+}
+
+async function autoFetchNewEmployerMonths() {
+  const fetchInfo = document.getElementById('fetch-info');
+  if (fetchInfo) {
+    fetchInfo.innerHTML = '<span>⏳</span> Fetching employer data…';
+  }
+
+  const freshEntries = await fetchMonthlyThreadData(
+    HN_SEARCH_URL,
+    /who is hiring/i,
+    [/wants to be hired/i, /freelancer/i],
+    50
+  );
+
+  window.allData = mergeMonthlyData(window.allData || [], freshEntries);
+  window.allData = window.allData.sort((a, b) => a.ts - b.ts);
+
+  if (fetchInfo) {
+    fetchInfo.innerHTML = '<span style="color:green">✔</span> Data Fetch Complete';
+  }
+
+  return window.allData;
+}
+
+async function autoFetchNewSeekerMonths() {
+  const fetchInfo = document.getElementById('fetch-info');
+  if (fetchInfo) {
+    fetchInfo.innerHTML = '<span>⏳</span> Fetching seeker data…';
+  }
+
+  const freshEntries = await fetchMonthlyThreadData(
+    HN_WANTSHIRED_URL,
+    /who wants to be hired/i,
+    [/hiring/i],
+    10
+  );
+
+  window.wantsHiredData = mergeMonthlyData(window.wantsHiredData || [], freshEntries);
+  window.wantsHiredData = window.wantsHiredData.sort((a, b) => a.ts - b.ts);
+  window.seekerDataLoaded = true;
+
+  if (fetchInfo) {
+    fetchInfo.innerHTML = '<span style="color:green">✔</span> Data Fetch Complete';
+  }
+
+  return window.wantsHiredData;
+}
+
+window.refreshData = async function refreshData() {
+  window.allData = await loadDataJson();
+  window.wantsHiredData = await loadSeekerDataJson();
+  await autoFetchNewEmployerMonths();
+  await autoFetchNewSeekerMonths();
+  renderAll();
+};
 
 window.addEventListener('DOMContentLoaded', async () => {
   window.allData = await loadDataJson();
   window.wantsHiredData = await loadSeekerDataJson();
+  await autoFetchNewEmployerMonths();
   await autoFetchNewSeekerMonths();
   renderAll();
-  await autoFetchNewMonths();
 });
 
-
-// Auto-fetch new seeker months from current month back to May 2026
-async function autoFetchNewSeekerMonths() {
-  const minMonth = 4; // May (0-based)
-  const minYear = 2026;
-  const existing = window.wantsHiredData || [];
-
-  function isNewMonth(t) {
-    return (
-      t.year > minYear ||
-      (t.year === minYear && t.month >= minMonth)
-    ) && !existing.some(e => e.year === t.year && e.month === t.month);
-  }
-
-  // Show fetching indicator
-  const fetchInfo = document.getElementById('fetch-info');
-  if (fetchInfo) {
-    fetchInfo.innerHTML = '<span>⏳</span> Fetching new data…';
-  }
-
-  // Fetch thread list but do not fetch post counts
-  let res = await fetch(HN_WANTSHIRED_URL + '&page=0');
-  let data = await res.json();
-  let hits = data.hits || [];
-  let res2b = await fetch(HN_WANTSHIRED_URL + '&page=1');
-  let data2b = await res2b.json();
-  hits = hits.concat(data2b.hits || []);
-  const validTitles = hits.filter(h =>
-    h.title &&
-    /who wants to be hired/i.test(h.title) &&
-    !/hiring/i.test(h.title) &&
-    h.num_comments > 10
-  );
-  const threads = validTitles.map(h => {
-    const date = new Date(h.created_at);
-    return {
-      id: h.objectID,
-      label: date.toLocaleString('default', { month: 'long', year: 'numeric' }),
-      month: date.getMonth(),
-      year: date.getFullYear(),
-      ts: date.getTime(),
-      count: h.num_comments
-    };
-  });
-  const newThreads = threads.filter(isNewMonth);
-  if (newThreads.length) {
-    window.wantsHiredData = existing.concat(newThreads);
-    window.seekerDataLoaded = true;
-  }
-
-  // If both employer and seeker data are up to date, show complete
-  const employerDone = typeof window.allData !== 'undefined';
-  const seekerDone = true; // We just finished seeker fetch
-  if (fetchInfo && employerDone && seekerDone) {
-    fetchInfo.innerHTML = '<span style="color:green">✔</span> Data Fetch Complete';
-  }
-}
 window.downloadData = function downloadData() {
   if (!window.allData || !window.allData.length) {
     alert('No data loaded yet. Please fetch data first.');
