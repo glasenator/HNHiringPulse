@@ -76,9 +76,9 @@
   --hn-orange: #ff6600;
   --hn-orange-dim: rgba(255, 102, 0, 0.15);
   --hn-orange-glow: rgba(255, 102, 0, 0.4);
-  --text: #e8e8e8;
-  --muted: #666;
-  --muted2: #444;
+  --text: #f0f0f0;
+  --muted: #c2c2c2;
+  --muted2: #a8a8a8;
   --green: #3ddc84;
   --red: #ff4444;
   --blue: #4aa8ff;
@@ -271,7 +271,14 @@ header {
 }
 
 .btn:hover { background: var(--surface2); color: var(--text); }
-.btn.active { background: var(--hn-orange-dim); color: var(--hn-orange); }
+.btn.active { background: rgba(255, 102, 0, 0.28); color: #ffe2c7; }
+
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
 
 .fetch-btn {
   margin-left: auto;
@@ -419,7 +426,7 @@ canvas {
 
 .delta-badge.up { background: rgba(61,220,132,0.15); color: var(--green); }
 .delta-badge.down { background: rgba(255,68,68,0.15); color: var(--red); }
-delta-badge.neutral { color: var(--muted); }
+.delta-badge.neutral { color: var(--muted); }
 
 /* Loading / empty state */
 .state-panel {
@@ -505,4 +512,4 @@ footer {
 }
 
 footer a { color: var(--muted); text-decoration: none; }
-footer a:hover { color: var(--hn-orange); }
+footer a:hover { color: #ffb37a; }

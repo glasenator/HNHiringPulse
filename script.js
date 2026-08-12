@@ -27,11 +27,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
-// HN Hiring Pulse: Initialize from data.json, fetch only new months
-const HN_ITEM_URL = id => `https://hn.algolia.com/api/v1/items/${id}`;
-const HN_SEARCH_URL = `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN:+Who+is+hiring?&tags=story&hitsPerPage=50`;
-const HN_SEARCH_AUTHOR = `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN+Who+is+hiring&tags=story,author_whoishiring&hitsPerPage=50`;
-const HN_WANTSHIRED_URL = `https://hn.algolia.com/api/v1/search_by_date?query=Ask+HN:+Who+wants+to+be+hired&tags=story&hitsPerPage=50`;
+// HN Hiring Pulse: initialize from server-provided shared cache
 
 window.allData = [];
 window.wantsHiredData = [];
@@ -57,6 +53,43 @@ async function loadDataJson() {
   }
 }
 
+async function loadDashboardDataFromServer() {
+  const fetchInfo = document.getElementById('fetch-info');
+
+  try {
+    if (fetchInfo) {
+      fetchInfo.innerHTML = '<span>⏳</span> Loading shared daily cache…';
+    }
+
+    const res = await fetch('/api/dashboard-data');
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+
+    const payload = await res.json();
+    window.allData = (payload.employerData || []).slice().sort((a, b) => a.ts - b.ts);
+    window.wantsHiredData = (payload.seekerData || []).slice().sort((a, b) => a.ts - b.ts);
+    window.seekerDataLoaded = true;
+
+    if (fetchInfo) {
+      if (payload.refreshError) {
+        fetchInfo.innerHTML = '<span style="color:#ff4444">●</span> Refresh failed today, using shared cache';
+      } else if (payload.refreshedOnRequest) {
+        fetchInfo.innerHTML = '<span style="color:green">✔</span> Daily server refresh complete';
+      } else {
+        fetchInfo.innerHTML = '<span style="color:green">✔</span> Using shared daily cache';
+      }
+    }
+  } catch (err) {
+    console.error('Failed loading server data, falling back to local JSON files:', err);
+    window.allData = await loadDataJson();
+    window.wantsHiredData = await loadSeekerDataJson();
+    window.seekerDataLoaded = true;
+
+    if (fetchInfo) {
+      fetchInfo.innerHTML = '<span style="color:#ff4444">●</span> Server cache unavailable, using local data';
+    }
+  }
+}
+
 function renderAll() {
   // Render stats, chart, and table using filtered data by range
   let data = window.allData.slice().sort((a, b) => a.ts - b.ts);
@@ -70,8 +103,10 @@ function renderAll() {
   const prev = data[data.length - 2];
   const peak = data.reduce((max, d) => d.count > max.count ? d : max, data[0]);
   const low = data.reduce((min, d) => d.count < min.count ? d : min, data[0]);
-  document.getElementById('stat-months').textContent = data.length;
-  document.getElementById('stat-months-sub').textContent = `${data.length} shown`;
+  const totalTrackedMonths = (window.allData || []).length;
+  const shownMonths = data.length;
+  document.getElementById('stat-months').textContent = totalTrackedMonths;
+  document.getElementById('stat-months-sub').textContent = `${shownMonths} shown`;
   document.getElementById('stat-latest').textContent = latest.count.toLocaleString();
   document.getElementById('stat-latest-sub').textContent = latest.label;
   document.getElementById('stat-peak').textContent = peak.count.toLocaleString();
@@ -320,163 +355,13 @@ function renderAll() {
 
 
 
-// Utility to check if new months are available and enable/disable fetch button
-async function checkFetchAvailability() {
-  const minMonth = 4; // May (0-based)
-  const minYear = 2026;
-  const existing = window.allData || [];
-
-  function isNewMonth(t) {
-    return (
-      t.year > minYear ||
-      (t.year === minYear && t.month >= minMonth)
-    ) && !existing.some(e => e.year === t.year && e.month === t.month);
-  }
-
-  // Fetch thread list but do not fetch post counts
-  let res = await fetch(HN_SEARCH_AUTHOR + '&page=0');
-  let data = await res.json();
-  let hits = data.hits || [];
-  let res2b = await fetch(HN_SEARCH_AUTHOR + '&page=1');
-  let data2b = await res2b.json();
-  hits = hits.concat(data2b.hits || []);
-  let res3b = await fetch(HN_SEARCH_URL + '&page=0');
-  let data3b = await res3b.json();
-  hits = hits.concat(data3b.hits || []);
-  let res4b = await fetch(HN_SEARCH_URL + '&page=1');
-  let data4b = await res4b.json();
-  hits = hits.concat(data4b.hits || []);
-  const validTitles = hits.filter(h =>
-    h.title &&
-    /who is hiring/i.test(h.title) &&
-    !/wants to be hired/i.test(h.title) &&
-    !/freelancer/i.test(h.title) &&
-    h.num_comments > 50
-  );
-    return validTitles.map(h => {
-    const date = new Date(h.created_at);
-    return {
-      id: h.objectID,
-      month: date.getMonth(),
-      year: date.getFullYear(),
-    };
-  });
-}
-
-
-function monthKey(entry) {
-  return `${entry.year}-${entry.month}`;
-}
-
-function mergeMonthlyData(existingData, freshEntries) {
-  const byMonth = new Map();
-  (existingData || []).forEach(item => byMonth.set(monthKey(item), item));
-  (freshEntries || []).forEach(item => byMonth.set(monthKey(item), item));
-  return [...byMonth.values()].sort((a, b) => a.ts - b.ts);
-}
-
-function buildMonthEntryFromHit(hit) {
-  const date = new Date(hit.created_at);
-  return {
-    id: hit.objectID,
-    label: date.toLocaleString('default', { month: 'long', year: 'numeric' }),
-    month: date.getMonth(),
-    year: date.getFullYear(),
-    ts: date.getTime(),
-    count: hit.num_comments || 0
-  };
-}
-
-async function fetchMonthlyThreadData(url, titleMatcher, disallowMatchers = [], minComments = 0) {
-  const pages = [0, 1];
-  let hits = [];
-
-  for (const page of pages) {
-    const res = await fetch(`${url}&page=${page}`);
-    const data = await res.json();
-    hits = hits.concat(data.hits || []);
-  }
-
-  const latestByMonth = new Map();
-
-  hits.forEach(hit => {
-    if (!hit.title) return;
-    if (!titleMatcher.test(hit.title)) return;
-    if (disallowMatchers.some(re => re.test(hit.title))) return;
-    if ((hit.num_comments || 0) < minComments) return;
-
-    const monthEntry = buildMonthEntryFromHit(hit);
-    const key = `${monthEntry.year}-${monthEntry.month}`;
-
-    const current = latestByMonth.get(key);
-    if (!current || monthEntry.count > current.count) {
-      latestByMonth.set(key, monthEntry);
-    }
-  });
-
-  return [...latestByMonth.values()].sort((a, b) => a.ts - b.ts);
-}
-
-async function autoFetchNewEmployerMonths() {
-  const fetchInfo = document.getElementById('fetch-info');
-  if (fetchInfo) {
-    fetchInfo.innerHTML = '<span>⏳</span> Fetching employer data…';
-  }
-
-  const freshEntries = await fetchMonthlyThreadData(
-    HN_SEARCH_URL,
-    /who is hiring/i,
-    [/wants to be hired/i, /freelancer/i],
-    50
-  );
-
-  window.allData = mergeMonthlyData(window.allData || [], freshEntries);
-  window.allData = window.allData.sort((a, b) => a.ts - b.ts);
-
-  if (fetchInfo) {
-    fetchInfo.innerHTML = '<span style="color:green">✔</span> Data Fetch Complete';
-  }
-
-  return window.allData;
-}
-
-async function autoFetchNewSeekerMonths() {
-  const fetchInfo = document.getElementById('fetch-info');
-  if (fetchInfo) {
-    fetchInfo.innerHTML = '<span>⏳</span> Fetching seeker data…';
-  }
-
-  const freshEntries = await fetchMonthlyThreadData(
-    HN_WANTSHIRED_URL,
-    /who wants to be hired/i,
-    [/hiring/i],
-    10
-  );
-
-  window.wantsHiredData = mergeMonthlyData(window.wantsHiredData || [], freshEntries);
-  window.wantsHiredData = window.wantsHiredData.sort((a, b) => a.ts - b.ts);
-  window.seekerDataLoaded = true;
-
-  if (fetchInfo) {
-    fetchInfo.innerHTML = '<span style="color:green">✔</span> Data Fetch Complete';
-  }
-
-  return window.wantsHiredData;
-}
-
 window.refreshData = async function refreshData() {
-  window.allData = await loadDataJson();
-  window.wantsHiredData = await loadSeekerDataJson();
-  await autoFetchNewEmployerMonths();
-  await autoFetchNewSeekerMonths();
+  await loadDashboardDataFromServer();
   renderAll();
 };
 
 window.addEventListener('DOMContentLoaded', async () => {
-  window.allData = await loadDataJson();
-  window.wantsHiredData = await loadSeekerDataJson();
-  await autoFetchNewEmployerMonths();
-  await autoFetchNewSeekerMonths();
+  await loadDashboardDataFromServer();
   renderAll();
 });
 
