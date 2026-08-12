@@ -131,7 +131,9 @@ function renderAll() {
   const container = document.getElementById('chart-container');
   const chartCanvas = document.getElementById('chart');
   const dpr = window.devicePixelRatio || 1;
-  const W = container.clientWidth - 48;
+  const availableWidth = container.clientWidth - 48;
+  const minScrollableChartWidth = 680;
+  const W = Math.max(availableWidth, minScrollableChartWidth);
   const H = 280;
   chartCanvas.width = W * dpr;
   chartCanvas.height = H * dpr;

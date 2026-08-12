@@ -26,39 +26,41 @@
 <!-- Combined App Description and HN Context -->
 <div class="app-desc-outer">
   <p class="app-desc-text">
-    <strong>HN Hiring Pulse</strong> automatically tracks and visualizes monthly "Ask HN: Who is Hiring?" job threads on Hacker News. It fetches and counts top-level job posts for each month, showing trends, peaks, and changes over time. Data is sourced from the HN Algolia API and updates automatically as new months are posted.<br><br>
-    <strong>Hacker News</strong> is a popular online community where software engineers, founders, and tech enthusiasts share news and discuss trends. Every month, the "Ask HN: Who is Hiring?" thread becomes a central hub for job postings in the software industry. Because so many companies and job seekers use it, the volume of posts here is often seen as a weathervane for the broader tech job market—rising in boom times, dipping during slowdowns.
+    <strong>HN Hiring Pulse</strong> automatically tracks and visualizes monthly <span style="color:var(--hn-orange)">"Who is Hiring?"</span> and <span style="color:var(--blue)">"Who Wants to be Hired?"</span> job threads on Hacker News. It fetches and counts top-level comment job posts for each month, showing trends, peaks, and changes over time. Data is sourced from the HN Algolia API and updates automatically as new months are posted.<br><br>
+    <strong>Hacker News</strong> is a popular online community where software engineers, founders, and tech enthusiasts share news and discuss trends. Every month, the "Ask HN: Who is Hiring?" thread becomes a central hub for job postings in the software industry. Because so many companies and job seekers use it, the volume of posts here is often seen as a weathervane for the broader tech job market: Rising in boom times, dipping during slowdowns.
   </p>
 </div>
 
 <div class="main">
 
   <!-- Stats Row -->
-  <div class="stats-row" id="stats-row">
-    <div class="stat-card">
-      <div class="stat-label">Months tracked</div>
-      <div class="stat-value orange" id="stat-months">—</div>
-      <div class="stat-delta neutral" id="stat-months-sub">fetch data to begin</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Jobs this month</div>
-      <div class="stat-value" id="stat-latest">—</div>
-      <div class="stat-delta neutral" id="stat-latest-sub">job postings</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Peak month</div>
-      <div class="stat-value" id="stat-peak">—</div>
-      <div class="stat-delta neutral" id="stat-peak-sub">all-time high</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">Lowest month</div>
-      <div class="stat-value" id="stat-low">—</div>
-      <div class="stat-delta neutral" id="stat-low-sub">all-time low</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-label">MoM Change</div>
-      <div class="stat-value" id="stat-mom">—</div>
-      <div class="stat-delta neutral" id="stat-mom-sub">vs prior month</div>
+  <div class="stats-scroll">
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Months tracked</div>
+        <div class="stat-value orange" id="stat-months">—</div>
+        <div class="stat-delta neutral" id="stat-months-sub">fetch data to begin</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Jobs this month</div>
+        <div class="stat-value" id="stat-latest">—</div>
+        <div class="stat-delta neutral" id="stat-latest-sub">job postings</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Peak month</div>
+        <div class="stat-value" id="stat-peak">—</div>
+        <div class="stat-delta neutral" id="stat-peak-sub">all-time high</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Lowest month</div>
+        <div class="stat-value" id="stat-low">—</div>
+        <div class="stat-delta neutral" id="stat-low-sub">all-time low</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">MoM Change</div>
+        <div class="stat-value" id="stat-mom">—</div>
+        <div class="stat-delta neutral" id="stat-mom-sub">vs prior month</div>
+      </div>
     </div>
   </div>
 

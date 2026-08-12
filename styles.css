@@ -192,6 +192,24 @@ header {
   margin-bottom: 32px;
 }
 
+.stats-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.stats-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.stats-scroll::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+.stats-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
 .stat-card {
   background: var(--surface);
   padding: 20px 24px;
@@ -307,6 +325,21 @@ summary:focus-visible {
   padding: 24px;
   margin-bottom: 24px;
   position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chart-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chart-container::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+.chart-container::-webkit-scrollbar-thumb {
+  background: var(--border);
 }
 
 .chart-header {
@@ -513,3 +546,20 @@ footer {
 
 footer a { color: var(--muted); text-decoration: none; }
 footer a:hover { color: #ffb37a; }
+
+@media (max-width: 768px) {
+  .stats-row {
+    min-width: 820px;
+  }
+
+  .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .chart-legend {
+    flex-wrap: wrap;
+    gap: 10px 14px;
+  }
+}
